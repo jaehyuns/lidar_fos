@@ -1,0 +1,17 @@
+scan_filter_chain:
+- name: box_filter
+  type: laser_filters/LaserScanBoxFilter
+  params:
+    box_frame: laser
+    max_x: 1.0  # front
+    max_y: 0.2   #left
+    max_z: 1.0
+    min_x: -0.005  #back
+    min_y: -0.2  #right
+    min_z: -1.0
+    invert: true
+#  unit:m
+
+#invert:
+#case false: remove all thing that is detected in box
+#case true: remove all thing that is detected out of box
