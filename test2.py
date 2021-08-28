@@ -26,10 +26,10 @@ def drive(angle, speed):
 	drive_value = drive_values()
 	drive_value.steering = angle
 	if (drive_value.steering>23):
-		drive_value.throttle=3
+		drive_value.throttle=2
 		drive_value.steering = 30.0
 	elif (drive_value.steering<-23):
-		drive_value.throttle=3
+		drive_value.throttle=2
 		drive_value.steering=-30.0
 	else:		
 		drive_value.throttle = speed
@@ -57,19 +57,19 @@ class point:
 		if(dis<0.5):
 			if(steer>0):
 				print("Absol,right")
-				self.center_y+=0.5
+				self.center_y+=0.7
 			elif(steer<0):
-				self.center_y-=0.3
+				self.center_y-=0.7
 				print("Absol,left")
 	def avoid_collision(self,distance_min,steer):
 	
 		print("distance_min",distance_min)
-		if(distance_min<0.5):
+		if(distance_min<0.7):
 			if(steer>0):
 				print("Absol,right1111111111111")
-				self.center_y+=0.5
+				self.center_y+=0.7
 			elif(steer<0):
-				self.center_y-=0.3
+				self.center_y-=0.7
 				print("Absol,left11111111111111111111")	
 				
 				
@@ -85,13 +85,13 @@ class point:
 	def calc_dismin(self,x1, x2, x3, x4, y1, y2, y3, y4):
 		
 		dis1=math.sqrt(x1**2+y1**2)
-		print("dis1, ",dis1)
+		#print("dis1, ",dis1)
 		dis2=math.sqrt(x2**2+y2**2)
-		print("dis2, ",dis2)
+		#print("dis2, ",dis2)
 		dis3=math.sqrt(x3**2+y3**2)
-		print("dis3, ",dis3)
+		#print("dis3, ",dis3)
 		dis4=math.sqrt(x4**2+y4**2)
-		print("dis4, ",dis4)
+		#print("dis4, ",dis4)
 		dis_min=min(dis1,dis2,dis3,dis4)
 		return dis_min
 
@@ -174,7 +174,7 @@ class point:
 		if len(self.obData.circles) == 0: 
 			self.xycar_angle_deg = 0
 			print("zero2")
-			drive(self.xycar_angle_deg,5)
+			drive(self.xycar_angle_deg,7)
 
 		elif len(self.obData.circles) == 1:
 			circles=self.obData.circles
@@ -194,7 +194,7 @@ class point:
 			sorted_list=[1,2,3,4]
 			sorted_list_3=[1,2,3]
 			a=1.4
-	                b=0.3
+	                b=0.1
 			if(len(circles)>2):
 	
 				if(len(circles)==3):
@@ -212,7 +212,7 @@ class point:
 				
 					self.center_x,self.center_y=self.calcEquidistance(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
 					self.calc_angle()
-					drive(self.xycar_angle_deg,4)
+					drive(self.xycar_angle_deg,6)
 					
 						
 								
@@ -229,7 +229,7 @@ class point:
 
 					sorted_2_list=self.circles_4_center(sorted_list)
 
-									
+						
 					left_circle_1=sorted_2_list[0]
 					left_circle_2=sorted_2_list[1]
 					right_circle_1=sorted_2_list[2]
@@ -241,23 +241,37 @@ class point:
 
 						
 					if (left_point2.y>0.01):
+						self.distance_min=self.calc_dismin(left_point1.x,left_point2.x,right_point1.x,right_point2.x,left_point1.y,left_point2.y,right_point1.y,right_point2.y)
 						self.angle=self.angle_between(left_point2.x,right_point1.x,right_point2.x,left_point1.y,right_point1.y,right_point2.y)
-						if (self.angle>90):
-							
-							drive(30,4)
-							print("3right")
-							return
+						if (self.angle>120):
+							if((left_point2.x>right_point2.x) and (left_point2.x>right_point1.x)):
+								drive(-17,6)
+								print("3right- long left")
+								print("left2: ", left_point2.x)
+								print("right2: ", right_point2.x)
+								return
+							else:
+								if (self.distance_min < 0.7):
+									self.avoid_collision(self.distance_min,self.xycar_angle_deg)
+									self.calc_angle()
+									drive(self.xycar_angle_deg,3)
+									print('avoid_right')
+									return
+								else:
+									drive(17,6)
+									print("3right")
+									return
 							
 						else:
 					
 							self.center_x=(left_point1.x+left_point2.x+right_point1.x+right_point2.x)/4
-							self.center_y=(left_point1.y+left_point2.y+right_point1.y+right_point2.y)/4 #b
+							self.center_y=(left_point1.y+left_point2.y+right_point1.y+right_point2.y)/4
 							self.calc_angle()
 							self.distance_min=self.calc_dismin(left_point1.x,left_point2.x,right_point1.x,right_point2.x,left_point1.y,left_point2.y,right_point1.y,right_point2.y)
 							
-							self.avoid_collision(self.distance_min,self.xycar_angle_deg)
+							#self.avoid_collision(self.distance_min,self.xycar_angle_deg)
 							self.calc_angle()
-							drive(self.xycar_angle_deg,4)
+							drive(self.xycar_angle_deg,6)
 							print("normal path--1")
 							return
 
@@ -271,10 +285,10 @@ class point:
 						self.center_y=(left_point1.y+left_point2.y+right_point1.y+right_point2.y)/4
 						self.calc_angle()
 						self.distance_min=self.calc_dismin(left_point1.x,left_point2.x,right_point1.x,right_point2.x,left_point1.y,left_point2.y,right_point1.y,right_point2.y)
-						self.avoid_collision(self.distance_min,self.xycar_angle_deg)
+						#self.avoid_collision(self.distance_min,self.xycar_angle_deg)
 						#self.avoid_collision(nearest_point.x,nearest_point.y,self.xycar_angle_deg)
 						self.calc_angle()
-						drive(self.xycar_angle_deg,4)
+						drive(self.xycar_angle_deg,6)
 						print("normal path--2")
 						return
 
@@ -297,12 +311,12 @@ class point:
 				
 				if(right_circle.center.y<0):
 					self.xycar_angle_deg=20	
- 					drive(self.xycar_angle_deg,4)
+ 					drive(self.xycar_angle_deg,6)
 					
 					return
 				elif(left_circle.center.y>0):
 					self.xycar_angle_deg=-20
-					drive(self.xycar_angle_deg,4)
+					drive(self.xycar_angle_deg,6)
 					
 					return
 					
@@ -316,9 +330,9 @@ class point:
 				self.calc_angle()
 			
 				print("x:",self.center_x,"y:",self.center_y,"deg:",self.xycar_angle_deg)
-				drive(self.xycar_angle_deg,4)
+				drive(self.xycar_angle_deg,6)
 
-				self.publish_angle()
+				#self.publish_angle()
 			
 
 	def calc_angle(self):
@@ -340,3 +354,4 @@ if __name__=='__main__':
 		ob.circle()
 	
 	print('Done')
+	
