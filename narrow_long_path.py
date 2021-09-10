@@ -9,11 +9,34 @@ from obstacle_detector.msg import SegmentObstacle
 from geometry_msgs.msg import Point
 from race.msg import drive_values
 from math import atan2, degrees
+from vision_distance.msg import Colorcone_lidar, ColorconeArray_lidar 
 
 drive_values_pub = rospy.Publisher('control_value', drive_values, queue_size=1)
-
+yellow_cone=[]
+blue_cone=[]
 def cal_distance(x,y):
 	return (math.sqrt(x**2+y**2))
+
+def colorcone_callback(msg):
+	global flag, dist_x, dist_y
+	global yellow_cone, blue_cone
+	yellow_cone=[]
+	blue_cone=[]
+	colorcone = msg.colorcone
+
+	sorted_colorcone = sorted(colorcone, key=lambda x:(x.dist_y,x.dist_x,x.flag))
+	sorted_colorcone = sorted_colorcone[:4]
+	#print("colorcone_array" , sorted_colorcone)
+	#print("#####",len(sorted_colorcone) )
+	for i in range (len(sorted_colorcone)):
+		if sorted_colorcone[i].flag==0:
+			yellow_cone.append(sorted_colorcone[i])
+		else:
+			blue_cone.append(sorted_colorcone[i])
+	#print("$$$$$$$$$$$$$$$$$$$$$$$$$", len(yellow_cone))
+	#print("***********************", len(sorted_colorcone))
+			
+
 
 def drive(angle, speed):
 	global drive_values_pub
@@ -43,7 +66,7 @@ class point:
 		self.xycar_angle = None
 		self.xycar_angle_deg = None
 		self.angle=None
-		self.normal_speed=5
+		self.normal_speed=6
 		self.slow_speed=3
 
 	def cal_distance_two_circle(self,x1,y1,x2,y2):
@@ -51,31 +74,22 @@ class point:
 		return distance
 
 	def avoid_collision(self,min_list):
-
 		#print("distance_min",distance_min)
 		point=min_list[1]
 		steer=self.xycar_angle_deg
 		margin=8
 		if(point.y>0):
-			if(self.center_y > 0.5):
-				steer-=margin
-				drive(steer,self.slow_speed)
-				#print('-----aa------')
-			else: 
-				steer-=margin
-				drive(steer,self.slow_speed)
-				print("--Danger---left steering")
+			steer-=margin
+			drive(steer,self.slow_speed)
+			print("--Danger---left steering")
 			
-
+			
 		else:
-			if(self.center_y < -0.5 ):
-				steer+=margin
-				drive(steer,self.slow_speed)
-				#print("--bb---")
-			else:
-				steer+=margin
-				drive(steer,self.slow_speed)
-				print("--Danger---right steering")
+		
+			
+			steer+=margin
+			drive(steer,self.slow_speed)
+			print("--Danger---right steering")
 			
 
 	def circles_4_center(self,sorted_list):
@@ -162,6 +176,11 @@ class point:
 		#print("Angle deg : ", self.xycar_angle_deg)
 
 	def circle(self):
+		#global yellow_cone
+		#global blue_cone
+		
+
+		#print("###################", len(yellow_cone))
 		print("CNT:",len(self.obData.circles))
 		if len(self.obData.circles) == 0:
 			print("zero obstacle")
@@ -169,13 +188,14 @@ class point:
 
 		elif len(self.obData.circles) == 1:
 			circles=self.obData.circles
-			if(circles[0].center.y > 0.0003):
+			if len(yellow_cone)==1 : 
+			
+				drive(25,3)
+			 	print("one obstacle detected && right steering")
+			else: 
 				drive(-25,3)
 				print("one obstacle detected && left steering")
-			elif(circles[0].center.y < 0.0003):
-				drive(25,3)
-				print("one obstacle detected && right steering")
-
+				
 
 
 
@@ -189,8 +209,16 @@ class point:
 			sorted_list_3=[1,2,3]
 			a=1.4
 	        	b=0.1
-			if(len(circles)==2):
-
+			'''
+			if len(blue_cone) == 0:
+				print("blue cone is not detected!!")
+				drive(30,self.normal_speed)
+			if len(yellow_cone) == 0:
+				print("yellow cone is not detected!!")
+				drive(-30,self.normal_speed)'''
+ 			if(len(circles)==2):
+		
+		
 				if(circles[0].center.y<circles[1].center.y):  #judgement left & right
 					left_circle=circles[0]
 					right_circle=circles[1]
@@ -202,7 +230,7 @@ class point:
 				self.two_circle_distance=self.cal_distance_two_circle(left_circle.center.x,left_circle.center.y,right_circle.center.x,right_circle.center.y)
 				self.two_between = self.angle_between(right_circle.center.x,left_circle.center.x,0,right_circle.center.y,left_circle.center.y,0)
 
-				if(self.two_circle_distance>3.0 and left_circle.center.x + 0.4 < right_circle.center.x and self.two_between > 90):
+				if (len(yellow_cone)==2 or len(yellow_cone)==1) and len(blue_cone)==0 : #(self.two_circle_distance>3.0 and left_circle.center.x + 0.4 < right_circle.center.x and self.two_between > 90):
 					print("two_obstacle_right")
 					drive(30,self.normal_speed)
 				else:
@@ -239,9 +267,12 @@ class point:
 
 				self.center_x,self.center_y=self.calcEquidistance(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
 				self.calc_angle()
-				drive(self.xycar_angle_deg,self.normal_speed)
-				self.three_detected_obstacles=self.angle_between(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
-				print("angle: ",self.three_detected_obstacles)
+				if len(yellow_cone)>=2 and len(blue_cone)==0:
+					self.xycar_angle_deg+=5
+					drive(self.xycar_angle_deg,self.normal_speed)
+					print(" yellow_cone==2")
+				else:								self.three_detected_obstacles=self.angle_between(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
+					#print("angle: ",self.three_detected_obstacles)
 
 			else:
 				sorted_first_list=sorted(circles,key= lambda circle:circle.center.x)
@@ -264,28 +295,46 @@ class point:
 				self.center_x=(left_point1.x+left_point2.x+right_point1.x+right_point2.x)/4
 				self.center_y=(left_point1.y+left_point2.y+right_point1.y+right_point2.y)/4
 				self.calc_angle()
-				min_list=self.calc_dismin(left_point1,left_point2,right_point1,right_point2)
-				#print("avoid:",min_list[1].y)
-				print('center_y:' ,self.center_y)
-				if(min_list[0]<1.3 and abs(min_list[1].y)<1.1):
-					self.avoid_collision(min_list)
-					print('front_avoid')
+				if len(yellow_cone)>=2 and len(blue_cone)==0:
+					self.xycar_angle_deg+=5
+					drive(self.xycar_angle_deg,self.slow_speed)
+					min_list=self.calc_dismin(left_point1,left_point2,right_point1,right_point2)
+					#print("avoid:",min_list[1].y)
+					print('center_y:' ,self.center_y)
+					if(min_list[0]<1.3 and abs(min_list[1].y)<1.1):
+						self.avoid_collision(min_list)
+						print('front_avoid')
+					else:
+						drive(self.xycar_angle_deg,self.normal_speed)
+						#print("normal path")
+						return
+				else:
+						min_list=self.calc_dismin(left_point1,left_point2,right_point1,right_point2)
+					#print("avoid:",min_list[1].y)
+					print('center_y:' ,self.center_y)
+					if(min_list[0]<1.3 and abs(min_list[1].y)<1.1):
+						self.avoid_collision(min_list)
+						print('front_avoid')
 
 				
-				else:
-					drive(self.xycar_angle_deg,self.normal_speed)
-					#print("normal path")
-					return
+					else:
+						drive(self.xycar_angle_deg,self.normal_speed)
+						#print("normal path")
+						return
 
 
 
 if __name__=='__main__':
+	global yellow_cone, blue_cone
 	ob=point()
 	rospy.Subscriber("/obstacles",Obstacles, ob.get_center, queue_size=1)
+	rospy.Subscriber("color_cone", ColorconeArray_lidar, colorcone_callback)
 	rospy.init_node('test3')
 	time.sleep(1)
 	while not rospy.is_shutdown():
 		time.sleep(0.1)
 		ob.circle()
+		yellow_cone = []
+		blue_cone = []
 
 	print('Done')
