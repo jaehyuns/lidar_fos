@@ -10,30 +10,55 @@ from geometry_msgs.msg import Point
 from race.msg import drive_values
 from math import atan2, degrees
 
+drive_speed=8
 drive_values_pub = rospy.Publisher('control_value', drive_values, queue_size=1)
 
 def cal_distance(x,y):
 	return (math.sqrt(x**2+y**2))
 
-def drive(angle, speed):
+def liner_acceleration(flag):
+		global drive_speed
+		in_step=0.1
+		de_step=0.2
+		limit_speed=8
+		bottom_speed=3
+		if(flag):
+			if (drive_speed>=limit_speed):
+				return drive_speed
+			else:
+				drive_speed+=in_step
+				return (drive_speed)
+		else:
+			if (drive_speed<=bottom_speed):
+				return bottom_speed
+			else:
+				drive_speed-=de_step
+				return (drive_speed)
+def drive(angle, flag):
 	global drive_values_pub
-	
+	global drive_speed
 	drive_value = drive_values()
 	drive_value.steering = angle
 	standard_angle=18
-	if (drive_value.steering>standard_angle):
-		drive_value.throttle=3
+	
+	if (drive_value.throttle==0):
+		drive_value.throttle=drive_speed
+	if (drive_value.steering>standard_angle or flag==True):
+		
+		drive_value.throttle=liner_acceleration(False)
 
-	elif (drive_value.steering<-standard_angle):
-		drive_value.throttle=3
+	elif (drive_value.steering<-standard_angle or flag==True):
+		
+		drive_value.throttle=liner_acceleration(False)
 
 	else:
-		drive_value.throttle = speed
-
+		
+		drive_value.throttle=liner_acceleration(True)
+	
 	drive_values_pub.publish(drive_value)
 
-	print("steer : ", drive_value.steering)
-	#print("throttle : ", drive_value.throttle)
+	#print("steer : ", drive_value.steering)
+	print("throttle : ", drive_value.throttle)
 class point:
 	def __init__(self):
 		self.distance_min=None
@@ -43,29 +68,28 @@ class point:
 		self.xycar_angle = None
 		self.xycar_angle_deg = None
 		self.angle=None
-		self.normal_speed=5
-		self.slow_speed=3
 
 	def cal_distance_two_circle(self,x1,y1,x2,y2):
 		distance=math.sqrt((x2-x1)**2+(y2-y1)**2)
 		return distance
+	
 
 	def avoid_collision(self,min_list):
 
 		#print("distance_min",distance_min)
 		point=min_list[1]
 		steer=self.xycar_angle_deg
-		margin=8
+		margin=5
 		if(point.y>0):
 			steer-=margin
-			drive(steer,self.slow_speed)
-			print("--Danger---left steering")
+			drive(steer,True)
+			#print("--Danger---left steering")
 			
 
 		else:
 			steer+=margin
-			drive(steer,self.slow_speed)
-			print("--Danger---right steering")
+			drive(steer,True)
+			#print("--Danger---right steering")
 			
 
 	def circles_4_center(self,sorted_list):
@@ -116,26 +140,26 @@ class point:
     		if yDiffAB != 0 and xDiffAB != 0 and yDiffBC != 0 and xDiffBC != 0 and yDiffAC != 0 and xDiffAC != 0:
         		self.center_x = -((a1 + (-b1)) / ((-b) + a))
         		self.center_y= (b * self.center_x) + b1
-			print("x: ",self.center_x, "y: ", self.center_y)
+			#print("x: ",self.center_x, "y: ", self.center_y)
 			return self.center_x,self.center_y
 
     		elif yDiffAB != 0 and xDiffAB != 0 and yDiffBC != 0 and xDiffBC != 0:
         		self.center_x = -((a1 + (-b1)) / ((-b) + a))
         		self.center_y = (b * self.center_x) + b1
-			print("x: ",self.center_x, "y: ", self.center_y)
+			#print("x: ",self.center_x, "y: ", self.center_y)
 			return self.center_x,self.center_y
 
 
     		elif yDiffBC != 0 and xDiffBC != 0 and yDiffAC != 0 and xDiffAC != 0:
         		self.center_x = -((b1 + (-c1)) / ((-c) + b))
         		self.center_y = (c * self.center_x) + c1
-			print("x: ",self.center_x, "y: ", self.center_y)
+			#print("x: ",self.center_x, "y: ", self.center_y)
 			return self.center_x,self.center_y
 
     		elif yDiffAB != 0 and xDiffAB != 0 and yDiffAC != 0 and xDiffAC != 0:
         		self.center_x = -((c1 + (-a1)) / ((-a) + c))
         		self.center_y = (a * self.center_x) + a1
-			print("x: ",self.center_x, "y: ", self.center_y)
+			#print("x: ",self.center_x, "y: ", self.center_y)
 			return self.center_x,self.center_y
 
 	def angle_between(self,x1, x2, x3, y1, y2, y3): #x2 angle
@@ -155,15 +179,15 @@ class point:
 		print("CNT:",len(self.obData.circles))
 		if len(self.obData.circles) == 0:
 			print("zero obstacle")
-			drive(0,7)
+			drive(0,False)
 
 		elif len(self.obData.circles) == 1:
 			circles=self.obData.circles
 			if(circles[0].center.y > 0.0003):
-				drive(-25,3)
+				drive(-25,True)
 				print("one obstacle detected && left steering")
 			elif(circles[0].center.y < 0.0003):
-				drive(25,3)
+				drive(25,True)
 				print("one obstacle detected && right steering")
 
 
@@ -193,16 +217,16 @@ class point:
 				self.two_between = self.angle_between(right_circle.center.x,left_circle.center.x,0,right_circle.center.y,left_circle.center.y,0)
 
 				if(self.two_circle_distance>3.0 and left_circle.center.x + 0.4 < right_circle.center.x and self.two_between > 90):
-					print("two_obstacle_right")
-					drive(30,self.normal_speed)
+					#print("two_obstacle_right")
+					drive(30,False)
 				else:
 
 					if(right_circle.center.y<0):
-	 					drive(20,self.normal_speed)
+	 					drive(20,False)
 						return
 
 					elif(left_circle.center.y>0):
-						drive(-20,self.normal_speed)
+						drive(-20,False)
 						return
 					else:
 
@@ -212,7 +236,7 @@ class point:
 						self.center_x=(left_point.x+right_point.x)/2
 						self.center_y=(left_point.y+right_point.y)/2
 						self.calc_angle()
-						drive(self.xycar_angle_deg,self.normal_speed)
+						drive(self.xycar_angle_deg,False)
 
 
 			elif (len(circles)==3):
@@ -229,9 +253,9 @@ class point:
 
 				self.center_x,self.center_y=self.calcEquidistance(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
 				self.calc_angle()
-				drive(self.xycar_angle_deg,self.normal_speed)
+				drive(self.xycar_angle_deg,False)
 				self.three_detected_obstacles=self.angle_between(filter_point1.x,filter_point2.x,filter_point3.x,filter_point1.y,filter_point2.y,filter_point3.y)
-				print("angle: ",self.three_detected_obstacles)
+				#print("angle: ",self.three_detected_obstacles)
 
 			else:
 				sorted_first_list=sorted(circles,key= lambda circle:circle.center.x)
@@ -263,7 +287,7 @@ class point:
 
 				
 				else:
-					drive(self.xycar_angle_deg,self.normal_speed)
+					drive(self.xycar_angle_deg,False)
 					#print("normal path")
 					return
 
